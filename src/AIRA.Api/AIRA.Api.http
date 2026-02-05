@@ -1,0 +1,6 @@
+@AIRA.Api_HostAddress = http://localhost:5157
+
+GET {{AIRA.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

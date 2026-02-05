@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AIRA.Agents/AIRA.Agents.csproj" />
+    <Project Path="src/AIRA.Api/AIRA.Api.csproj" />
+    <Project Path="src/AIRA.Core/AIRA.Core.csproj" />
+    <Project Path="src/AIRA.Infrastructure/AIRA.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AIRA.Tests/AIRA.Tests.csproj" />
+  </Folder>
+</Solution>
