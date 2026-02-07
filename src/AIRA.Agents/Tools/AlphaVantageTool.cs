@@ -4,6 +4,7 @@ using AIRA.Agents.Tools.Models;
 using AIRA.Agents.Tools.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 
 namespace AIRA.Agents.Tools;
 
@@ -23,22 +24,31 @@ public class AlphaVantageTool : IFinancialDataTool
     private readonly HttpClient _httpClient;
     private readonly AlphaVantageOptions _options;
     private readonly ILogger<AlphaVantageTool> _logger;
+    private readonly IConfiguration _configuration;
 
     public string Name => "AlphaVantage";
 
     public AlphaVantageTool(
         HttpClient httpClient,
         IOptions<AlphaVantageOptions> options,
-        ILogger<AlphaVantageTool> logger)
+        ILogger<AlphaVantageTool> logger,
+        IConfiguration configuration)
     {
         _httpClient = httpClient;
         _options = options.Value;
         _logger = logger;
-        
+        _configuration = configuration;
+
         // Validate API key on construction
         if (string.IsNullOrWhiteSpace(_options.ApiKey))
         {
-            throw new InvalidOperationException("AlphaVantage API key is not configured");
+            var apiKey = _configuration["AlphaVantage:ApiKey"];
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                _options.ApiKey = apiKey;
+            }
+            else
+                throw new InvalidOperationException("AlphaVantage API key is not configured");
         }
         
         // Validate HTTPS URL
@@ -60,8 +70,8 @@ public class AlphaVantageTool : IFinancialDataTool
         
         try
         {
-            var url = $"{_options.BaseUrl}?function=GLOBAL_QUOTE&symbol={symbol}";
-            _httpClient.DefaultRequestHeaders.Add("X-Api-Key", _options.ApiKey);
+            var url = $"{_options.BaseUrl}?function=GLOBAL_QUOTE&symbol={symbol}&apikey={_options.ApiKey}";
+            //_httpClient.DefaultRequestHeaders.Add("X-Api-Key", _options.ApiKey);
 
             _logger.LogDebug("Fetching quote from Alpha Vantage for {Symbol}", symbol);
             
@@ -116,8 +126,7 @@ public class AlphaVantageTool : IFinancialDataTool
         
         try
         {
-            var url = $"{_options.BaseUrl}?function=OVERVIEW&symbol={symbol}";
-            _httpClient.DefaultRequestHeaders.Add("X-Api-Key", _options.ApiKey);
+            var url = $"{_options.BaseUrl}?function=OVERVIEW&symbol={symbol}&apikey={_options.ApiKey}";
 
             _logger.LogDebug("Fetching fundamentals from Alpha Vantage for {Symbol}", symbol);
             
@@ -186,8 +195,7 @@ public class AlphaVantageTool : IFinancialDataTool
         
         try
         {
-            var url = $"{_options.BaseUrl}?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=compact";
-            _httpClient.DefaultRequestHeaders.Add("X-Api-Key", _options.ApiKey);
+            var url = $"{_options.BaseUrl}?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=compact&apikey={_options.ApiKey}";
 
             _logger.LogDebug("Fetching historical prices from Alpha Vantage for {Symbol}", symbol);
             

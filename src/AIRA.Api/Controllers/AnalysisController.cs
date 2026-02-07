@@ -102,6 +102,13 @@ public class AnalysisController : ControllerBase
 
         return Ok(job.Steps);
     }
+
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<AnalysisJob>>> getAll()
+    {
+        var jobs = _jobService.GetAllJobsAsync();
+        return Ok(jobs);
+    }
 }
 
 public class JobSubmissionResponse

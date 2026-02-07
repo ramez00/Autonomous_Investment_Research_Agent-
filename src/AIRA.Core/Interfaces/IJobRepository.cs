@@ -7,6 +7,7 @@ namespace AIRA.Core.Interfaces;
 /// </summary>
 public interface IJobRepository
 {
+    Task<IEnumerable<AnalysisJob>> GetAllAsync();
     Task<AnalysisJob> CreateAsync(AnalysisJob job);
     Task<AnalysisJob?> GetByIdAsync(Guid id);
     Task<AnalysisJob> UpdateAsync(AnalysisJob job);

@@ -2,7 +2,7 @@ using AIRA.Agents.Tools;
 using AIRA.Agents.Tools.Models;
 using AIRA.Agents.Tools.Exceptions;
 using Microsoft.Extensions.Logging;
-using OpenAI.Chat;
+using AIRA.Agents.LLM;
 
 namespace AIRA.Agents.Agents;
 
@@ -12,18 +12,18 @@ namespace AIRA.Agents.Agents;
 public class NewsAnalystAgent : BaseResearchAgent
 {
     private readonly IEnumerable<INewsTool> _newsTools;
-    private readonly ChatClient? _chatClient;
+    private readonly ILlmClient? _llmClient;
 
     public override string AgentName => "NewsAnalyst";
 
     public NewsAnalystAgent(
         IEnumerable<INewsTool> newsTools,
-        ChatClient? chatClient,
+        ILlmClient? llmClient,
         ILogger<NewsAnalystAgent> logger) 
         : base(logger)
     {
         _newsTools = newsTools;
-        _chatClient = chatClient;
+        _llmClient = llmClient;
     }
 
     /// <summary>
@@ -134,7 +134,7 @@ public class NewsAnalystAgent : BaseResearchAgent
                 .ToList();
 
             // Use LLM for deeper analysis if available
-            if (_chatClient != null)
+            if (_llmClient != null)
             {
                 await EnhanceAnalysisWithLlm(analysis, cancellationToken);
             }
@@ -227,7 +227,7 @@ public class NewsAnalystAgent : BaseResearchAgent
 
     private async Task EnhanceAnalysisWithLlm(NewsAnalysis analysis, CancellationToken cancellationToken)
     {
-        if (_chatClient == null || analysis.Articles.Count == 0)
+        if (_llmClient == null || analysis.Articles.Count == 0)
             return;
 
         try
@@ -252,14 +252,7 @@ Respond in JSON format:
 
             var userPrompt = $"Analyze these recent headlines for {Tools.ValidationHelper.SanitizeInput(analysis.CompanyName, 200)} ({Tools.ValidationHelper.SanitizeInput(analysis.Symbol, 10)}):\n\n{headlines}";
 
-            var messages = new List<ChatMessage>
-            {
-                new SystemChatMessage(systemPrompt),
-                new UserChatMessage(userPrompt)
-            };
-
-            var response = await _chatClient.CompleteChatAsync(messages, cancellationToken: cancellationToken);
-            var content = response.Value.Content[0].Text;
+            var content = await _llmClient.CompleteChatAsync(systemPrompt, userPrompt, cancellationToken);
 
             // Use safe JSON parser
             var parsed = Tools.SafeJsonParser.ParseJsonFromText<LlmNewsAnalysis>(content);

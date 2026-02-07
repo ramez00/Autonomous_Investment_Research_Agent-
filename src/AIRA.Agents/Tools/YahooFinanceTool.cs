@@ -47,7 +47,9 @@ public class YahooFinanceTool : IFinancialDataTool
         
         try
         {
-            var url = $"{BaseUrl}/chart/{symbol}?interval=1d&range=1d";
+            var url = $"{BaseUrl}/chart/{symbol}";
+
+            _logger.LogInformation($"YahooFinance Url => {url}");
             
             _logger.LogDebug("Fetching quote from Yahoo Finance for {Symbol}", symbol);
             
@@ -120,6 +122,8 @@ public class YahooFinanceTool : IFinancialDataTool
             // Use the quoteSummary endpoint for detailed fundamentals
             var url = $"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{symbol}?modules=summaryDetail,financialData,defaultKeyStatistics,earnings";
             
+            _logger.LogInformation($"YahooFinance Url => {url}");
+
             _logger.LogDebug("Fetching fundamentals from Yahoo Finance for {Symbol}", symbol);
             
             var response = await _httpClient.GetFromJsonAsync<JsonElement>(url, cancellationToken);

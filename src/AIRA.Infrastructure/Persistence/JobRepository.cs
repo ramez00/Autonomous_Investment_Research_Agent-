@@ -118,4 +118,14 @@ public class JobRepository : IJobRepository
             }).OrderBy(s => s.StepNumber).ToList()
         };
     }
+
+    public async Task<IEnumerable<AnalysisJob>> GetAllAsync()
+    {
+         var entities = await _context.Jobs
+            .Include(j => j.Steps)
+            .OrderBy(j => j.CreatedAt)
+            .ToListAsync();
+
+        return entities.Select(MapToModel);
+    }
 }

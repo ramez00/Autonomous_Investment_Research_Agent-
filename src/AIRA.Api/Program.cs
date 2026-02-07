@@ -2,6 +2,7 @@ using System.Threading.Channels;
 using AIRA.Agents.Agents;
 using AIRA.Agents.Orchestration;
 using AIRA.Agents.Tools;
+using AIRA.Agents.LLM;
 using AIRA.Core.Interfaces;
 using AIRA.Core.Services;
 using AIRA.Infrastructure.BackgroundServices;
@@ -11,6 +12,11 @@ using OpenAI;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if(builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddUserSecrets<Program>();
+}
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -31,6 +37,16 @@ builder.Services.Configure<AlphaVantageOptions>(
 builder.Services.Configure<NewsApiOptions>(
     builder.Configuration.GetSection("NewsApi"));
 
+var alphaVantageApiKey = builder.Configuration["AlphaVantage:ApiKey"];
+var newsApiKey = builder.Configuration["NewsApi:ApiKey"];
+Log.Information("AlphaVantage API Key configured: {IsConfigured}", !string.IsNullOrWhiteSpace(alphaVantageApiKey));
+Log.Information("NewsApi API Key configured: {IsConfigured}", !string.IsNullOrWhiteSpace(newsApiKey));
+
+if (string.IsNullOrWhiteSpace(alphaVantageApiKey))
+{
+    Log.Warning("AlphaVantage API key is missing! Check your user secrets.");
+}
+
 // Database
 builder.Services.AddDbContext<JobDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection") 
@@ -40,20 +56,68 @@ builder.Services.AddDbContext<JobDbContext>(options =>
 builder.Services.AddScoped<IJobRepository, JobRepository>();
 builder.Services.AddScoped<IJobService, JobService>();
 
-// OpenAI client
-var openAiApiKey = builder.Configuration["OpenAI:ApiKey"];
-if (!string.IsNullOrEmpty(openAiApiKey))
+// LLM Configuration - Support multiple providers
+var llmProvider = builder.Configuration["LLM:Provider"]?.ToLowerInvariant() ?? "groq";
+Log.Information("LLM Provider: {Provider}", llmProvider);
+
+switch (llmProvider)
 {
-    builder.Services.AddSingleton(sp =>
-    {
-        var client = new OpenAIClient(openAiApiKey);
-        var model = builder.Configuration["OpenAI:Model"] ?? "gpt-4";
-        return client.GetChatClient(model);
-    });
-}
-else
-{
-    Log.Warning("OpenAI API key not configured. LLM features will be limited.");
+    case "openai":
+        var openAiApiKey = builder.Configuration["OpenAI:ApiKey"];
+        if (!string.IsNullOrEmpty(openAiApiKey))
+        {
+            builder.Services.AddSingleton<ILlmClient>(sp =>
+            {
+                var client = new OpenAIClient(openAiApiKey);
+                var model = builder.Configuration["OpenAI:Model"] ?? "gpt-4o-mini";
+                var chatClient = client.GetChatClient(model);
+                var logger = sp.GetRequiredService<ILogger<OpenAILlmClient>>();
+                return new OpenAILlmClient(chatClient, logger);
+            });
+            Log.Information("OpenAI LLM client configured with model: {Model}", builder.Configuration["OpenAI:Model"] ?? "gpt-4o-mini");
+        }
+        else
+        {
+            Log.Warning("OpenAI API key not configured. LLM features will be disabled.");
+        }
+        break;
+
+    case "groq":
+        var groqApiKey = builder.Configuration["Groq:ApiKey"];
+        if (!string.IsNullOrEmpty(groqApiKey))
+        {
+            builder.Services.AddHttpClient<GroqClient>();
+            builder.Services.AddScoped<ILlmClient>(sp =>
+            {
+                var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(GroqClient));
+                var logger = sp.GetRequiredService<ILogger<GroqClient>>();
+                var model = builder.Configuration["Groq:Model"] ?? "llama-3.3-70b-versatile";
+                return new GroqClient(httpClient, logger, groqApiKey, model);
+            });
+            Log.Information("Groq LLM client configured (FREE) with model: {Model}", builder.Configuration["Groq:Model"] ?? "llama-3.3-70b-versatile");
+        }
+        else
+        {
+            Log.Warning("Groq API key not configured. Get free API key from https://console.groq.com");
+        }
+        break;
+
+    case "ollama":
+        builder.Services.AddHttpClient<OllamaClient>();
+        builder.Services.AddScoped<ILlmClient>(sp =>
+        {
+            var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(OllamaClient));
+            var logger = sp.GetRequiredService<ILogger<OllamaClient>>();
+            var model = builder.Configuration["Ollama:Model"] ?? "llama3.2";
+            var baseUrl = builder.Configuration["Ollama:BaseUrl"] ?? "http://localhost:11434";
+            return new OllamaClient(httpClient, logger, model, baseUrl);
+        });
+        Log.Information("Ollama LLM client configured (FREE, LOCAL) with model: {Model}", builder.Configuration["Ollama:Model"] ?? "llama3.2");
+        break;
+
+    default:
+        Log.Warning("Unknown LLM provider: {Provider}. Valid options: openai, groq, ollama", llmProvider);
+        break;
 }
 
 // HTTP clients for external APIs

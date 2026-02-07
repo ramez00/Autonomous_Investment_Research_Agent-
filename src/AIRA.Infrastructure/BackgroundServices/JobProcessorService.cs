@@ -1,6 +1,8 @@
+using System.Collections.Concurrent;
 using System.Threading.Channels;
 using AIRA.Core.Interfaces;
 using AIRA.Core.Models;
+using AIRA.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -104,16 +106,25 @@ public class JobProcessorService : BackgroundService
         {
             await jobService.MarkJobStartedAsync(jobId);
 
+            var steps = new ConcurrentBag<AgentStep>();
+
             var result = await orchestrator.ExecuteResearchAsync(
                 job,
                 async step =>
                 {
-                    await jobService.AddStepAsync(jobId, step);
+                    steps.Add(step);
+                    await Task.CompletedTask; // Placeholder for any async operations needed when adding a step
+                    //await jobService.AddStepAsync(jobId, step);
                     _logger.LogDebug(
                         "Job {JobId} step {StepNumber}: {Agent} - {Action}",
                         jobId, step.StepNumber, step.AgentName, step.Action);
                 },
                 stoppingToken);
+
+            foreach (var step in steps.OrderBy(s => s.StepNumber))
+            {
+                await jobService.AddStepAsync(jobId, step);
+            }
 
             await jobService.MarkJobCompletedAsync(jobId, result);
 

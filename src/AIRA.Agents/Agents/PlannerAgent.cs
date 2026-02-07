@@ -1,8 +1,5 @@
-using AutoGen.Core;
-using AutoGen.OpenAI;
-using AutoGen.OpenAI.Extension;
 using Microsoft.Extensions.Logging;
-using OpenAI.Chat;
+using AIRA.Agents.LLM;
 
 namespace AIRA.Agents.Agents;
 
@@ -14,13 +11,13 @@ namespace AIRA.Agents.Agents;
 /// </summary>
 public class PlannerAgent : BaseResearchAgent
 {
-    private readonly ChatClient _chatClient;
+    private readonly ILlmClient? _llmClient;
     public override string AgentName => "Planner";
 
-    public PlannerAgent(ChatClient chatClient, ILogger<PlannerAgent> logger) 
+    public PlannerAgent(ILlmClient? llmClient, ILogger<PlannerAgent> logger) 
         : base(logger)
     {
-        _chatClient = chatClient;
+        _llmClient = llmClient;
     }
 
     /// <summary>
@@ -68,14 +65,13 @@ Provide the research plan in JSON format.";
 
         try
         {
-            var messages = new List<ChatMessage>
+            if (_llmClient == null)
             {
-                new SystemChatMessage(systemPrompt),
-                new UserChatMessage(userPrompt)
-            };
+                Logger.LogWarning("No LLM client configured, using default plan");
+                return CreateDefaultPlan(sanitizedCompanyName, sanitizedSymbol, sanitizedDepth);
+            }
 
-            var response = await _chatClient.CompleteChatAsync(messages, cancellationToken: cancellationToken);
-            var content = response.Value.Content[0].Text;
+            var content = await _llmClient.CompleteChatAsync(systemPrompt, userPrompt, cancellationToken);
             
             // Parse the response to extract the plan
             var plan = ParseResearchPlan(content, sanitizedCompanyName, sanitizedSymbol, sanitizedDepth);

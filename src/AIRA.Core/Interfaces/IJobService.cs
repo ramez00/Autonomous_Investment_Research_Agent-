@@ -7,6 +7,7 @@ namespace AIRA.Core.Interfaces;
 /// </summary>
 public interface IJobService
 {
+    Task<IEnumerable<AnalysisJob>> GetAllJobsAsync();
     /// <summary>
     /// Creates a new analysis job and queues it for processing
     /// </summary>

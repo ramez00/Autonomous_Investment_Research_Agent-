@@ -83,4 +83,9 @@ public class JobService : IJobService
             await _repository.UpdateAsync(job);
         }
     }
+
+    public async Task<IEnumerable<AnalysisJob>> GetAllJobsAsync()
+    {
+        return await _repository.GetAllAsync();
+    }
 }

@@ -188,24 +188,53 @@ The final analysis conforms to the required schema:
 ### Prerequisites
 
 - .NET 10 SDK
-- API Keys:
-  - OpenAI API key (for GPT-4)
-  - Alpha Vantage API key (free tier available)
-  - NewsAPI key (free tier available)
+- **LLM Provider** (Choose ONE - see [LLM Setup Guide](LLM_SETUP_GUIDE.md)):
+  - **Groq** (RECOMMENDED) - FREE API with 14,400 requests/day ([Get API Key](https://console.groq.com))
+  - **Ollama** - FREE local LLM, unlimited usage ([Download](https://ollama.ai))
+  - **OpenAI** - PAID service, requires credits ([Get API Key](https://platform.openai.com))
+- **Data Provider API Keys** (FREE):
+  - Alpha Vantage API key ([Get Free Key](https://www.alphavantage.co/support/#api-key))
+  - NewsAPI key ([Get Free Key](https://newsapi.org/register))
+
+### Quick Setup (Recommended: Groq)
+
+**Option 1: Using Groq (FREE - Recommended)**
+
+```bash
+# 1. Get free API key from https://console.groq.com
+# 2. Run the setup script
+.\setup-groq.ps1 gsk_your_api_key_here
+
+# 3. Add your data provider keys to appsettings.json
+# See Configuration section below
+```
+
+**Option 2: Using Ollama (FREE - Local)**
+
+```bash
+# 1. Install Ollama from https://ollama.ai
+# 2. Run the setup script (auto-downloads model)
+.\setup-ollama.ps1
+```
+
+**Option 3: Using OpenAI (PAID)**
+
+See detailed configuration in [LLM Setup Guide](LLM_SETUP_GUIDE.md)
 
 ### Configuration
 
-1. Copy the environment template:
-```bash
-cp .env.example .env
-```
+#### Complete appsettings.json Setup
 
-2. Add your API keys to `src/AIRA.Api/appsettings.json`:
+Edit `src/AIRA.Api/appsettings.json`:
+
 ```json
 {
-  "OpenAI": {
-    "ApiKey": "sk-your-openai-api-key",
-    "Model": "gpt-4"
+  "LLM": {
+    "Provider": "groq"  // Options: "groq", "ollama", "openai"
+  },
+  "Groq": {
+    "ApiKey": "gsk_your_groq_api_key",
+    "Model": "llama-3.3-70b-versatile"
   },
   "AlphaVantage": {
     "ApiKey": "your-alphavantage-key"
@@ -216,12 +245,27 @@ cp .env.example .env
 }
 ```
 
-Or use environment variables:
+#### Using Environment Variables (Alternative)
+
 ```bash
-export OpenAI__ApiKey=sk-your-key
+# LLM Provider
+export LLM__Provider=groq
+export Groq__ApiKey=gsk-your-key
+
+# Data Providers
 export AlphaVantage__ApiKey=your-key
 export NewsApi__ApiKey=your-key
 ```
+
+#### LLM Provider Comparison
+
+| Provider | Cost | Speed | Setup | Best For |
+|----------|------|-------|-------|----------|
+| **Groq** | FREE | ⚡ Fast | Easy | Most users (RECOMMENDED) |
+| **Ollama** | FREE | Medium | Medium | Privacy, unlimited usage |
+| **OpenAI** | PAID | Fast | Easy | Enterprise, highest quality |
+
+📚 **Detailed setup instructions**: See [LLM_SETUP_GUIDE.md](LLM_SETUP_GUIDE.md)
 
 ### Running the Service
 

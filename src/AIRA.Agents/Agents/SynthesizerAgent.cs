@@ -1,6 +1,6 @@
 using AIRA.Core.Models;
 using Microsoft.Extensions.Logging;
-using OpenAI.Chat;
+using AIRA.Agents.LLM;
 
 namespace AIRA.Agents.Agents;
 
@@ -9,14 +9,14 @@ namespace AIRA.Agents.Agents;
 /// </summary>
 public class SynthesizerAgent : BaseResearchAgent
 {
-    private readonly ChatClient _chatClient;
+    private readonly ILlmClient? _llmClient;
 
     public override string AgentName => "Synthesizer";
 
-    public SynthesizerAgent(ChatClient chatClient, ILogger<SynthesizerAgent> logger) 
+    public SynthesizerAgent(ILlmClient? llmClient, ILogger<SynthesizerAgent> logger) 
         : base(logger)
     {
-        _chatClient = chatClient;
+        _llmClient = llmClient;
     }
 
     /// <summary>
@@ -71,16 +71,15 @@ Be specific and data-driven. Reference actual numbers when available.";
 
 Provide your analysis in JSON format.";
 
-            var messages = new List<ChatMessage>
+            if (_llmClient == null)
             {
-                new SystemChatMessage(systemPrompt),
-                new UserChatMessage(userPrompt)
-            };
+                Logger.LogWarning("No LLM client configured, generating fallback result");
+                return GenerateFallbackResult(sanitizedCompanyName, sanitizedSymbol, financialAnalysis, newsAnalysis, allSteps);
+            }
 
             await RecordStepAsync("Generating investment thesis with LLM");
 
-            var response = await _chatClient.CompleteChatAsync(messages, cancellationToken: cancellationToken);
-            var content = response.Value.Content[0].Text;
+            var content = await _llmClient.CompleteChatAsync(systemPrompt, userPrompt, cancellationToken);
 
             // Parse the response
             var result = ParseSynthesisResult(content, sanitizedCompanyName, sanitizedSymbol);

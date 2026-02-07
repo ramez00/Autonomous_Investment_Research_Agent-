@@ -51,9 +51,7 @@ public string Name => "NewsAPI";
         
         // Configure timeout
         _httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
-        
-        // Set API key header once during initialization
-        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("X-Api-Key", _options.ApiKey);
+       
     }
 
     public async Task<NewsSearchResult> SearchNewsAsync(
@@ -99,13 +97,15 @@ public string Name => "NewsAPI";
             queryParams["from"] = fromDate;
             queryParams["sortBy"] = "relevancy";
             queryParams["pageSize"] = maxArticles.ToString();
+            queryParams["apiKey"] = _options.ApiKey;
             uriBuilder.Query = queryParams.ToString();
 
+            _logger.LogInformation($"NewsAPI search URL => {uriBuilder.ToString()}");
             _logger.LogDebug("Searching news for {CompanyName} from NewsAPI", sanitizedCompanyName);
 
             var response = await _httpClient.GetFromJsonAsync<JsonElement>(uriBuilder.ToString(), cancellationToken);
 
-            if (response.TryGetProperty("status", out var status) && 
+            if (response.TryGetProperty(propertyName: "status", out var status) && 
                 status.GetString() == "ok" &&
                 response.TryGetProperty("articles", out var articles))
             {
